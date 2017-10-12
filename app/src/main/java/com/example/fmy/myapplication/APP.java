@@ -27,28 +27,32 @@ public class APP extends Application {
         try {
             Class<?> ams_class = Class.forName("android.app.ActivityManagerNative");
             Field gDefault = ams_class.getDeclaredField("gDefault");
+            //因为gDefault是private所以用发射机制打破访问限制
             gDefault.setAccessible(true);
-
+            //得到gDefault实例对象 因为是stati属性所以get传入null即可得到
             Object gDefault_instance = gDefault.get(null);
-
+            //单例工具类class
             Class<?> singleton_class = Class.forName("android.util.Singleton");
-
+            //单例工具类的一个属性对象保存的是IActivityManager对象实例
             Field mInstance = singleton_class.getDeclaredField("mInstance");
+            //打破封装访问
             mInstance.setAccessible(true);
+            //传入gDefault对象实例得到IActivityManager对象实例
             final Object mInstance_instance = mInstance.get(gDefault_instance);
-
+            //动态代理，这个不会我真不知道讲下去。此方法会返回一个实现IActivityManager接口的实例对象
+            //拿着这个对象 替换单例工具类gDefault 的mInstance即可实现
             Object proxyInstance = Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), mInstance_instance.getClass().getInterfaces(), new InvocationHandler() {
                 @Override
                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-
+                   // IActivityManager接口方法太多 我们只关心它启动activity的接口方法
                     if (method.getName().equals("startActivity")) {
-
+                        //获取调用此方法传入的参数 我们这里只要Intent替换，所以只需要Intent替换
                         for (int i = 0; i < args.length; i++) {
                             Object arg = args[i];
                             if (arg instanceof Intent) {
                                 Intent intent = new Intent();
-//                                Intent arg_intent = (Intent) arg;
-
+                                //PlaceholdActivity因为在清单文件注册过所以 创建一个新的Intent替换原来的SecondActivity的意图。后面用到
+                                // 并将其保存到新的Intent中
                                 ComponentName componentName = new ComponentName("com.example.fmy.myapplication", PlaceholdActivity.class.getName());
                                 intent.setComponent(componentName);
                                 intent.putExtra(KEY_EXTRA_TARGET_INTENT, ((Intent) arg));
@@ -62,8 +66,7 @@ public class APP extends Application {
                     return method.invoke(mInstance_instance, args);
                 }
             });
-//            // gDefault是一个 android.util.Singleton对象; 我们取出这个单例里面的字段
-
+//         替换单例工具类gDefault 的mInstance实现动态代理
             mInstance.set(gDefault_instance, proxyInstance);
 
             //过检验结束
