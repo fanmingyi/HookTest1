@@ -44,7 +44,7 @@ public class APP extends Application {
             Object proxyInstance = Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), mInstance_instance.getClass().getInterfaces(), new InvocationHandler() {
                 @Override
                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                   // IActivityManager接口方法太多 我们只关心它启动activity的接口方法
+                    // IActivityManager接口方法太多 我们只关心它启动activity的接口方法
                     if (method.getName().equals("startActivity")) {
                         //获取调用此方法传入的参数 我们这里只要Intent替换，所以只需要Intent替换
                         for (int i = 0; i < args.length; i++) {
@@ -73,28 +73,33 @@ public class APP extends Application {
             Class<?> activityThread_class = Class.forName("android.app.ActivityThread");
             Field sCurrentActivityThread_field = activityThread_class.getDeclaredField("sCurrentActivityThread");
             sCurrentActivityThread_field.setAccessible(true);
+            //获取静态属性对象实例
             Object activityThread_instance = sCurrentActivityThread_field.get(null);
 
             Field mH_field = activityThread_class.getDeclaredField("mH");
+
             mH_field.setAccessible(true);
+            //获取handler对象实例
             Object mH_insance = mH_field.get(activityThread_instance);
 
             Field mCallback_field = Handler.class.getDeclaredField("mCallback");
 
 
             mCallback_field.setAccessible(true);
-
+            //给handler添加mCallback
             mCallback_field.set(mH_insance, new Handler.Callback() {
 
                 @Override
                 public boolean handleMessage(Message msg) {
                     if (msg.what == 100) {
+                        //得到ActivityClientRecord
                         Object obj = msg.obj;
                         try {
+                            //得到Intent对象
                             Field intent_field = obj.getClass().getDeclaredField("intent");
                             intent_field.setAccessible(true);
                             Intent intent = (Intent) intent_field.get(obj);
-
+                            //取出我们前面存在Intent里的原本没有注册在清单文件的Activity的Intent
                             Intent target_intent = intent.getParcelableExtra(KEY_EXTRA_TARGET_INTENT);
 
                             if (target_intent != null) {
